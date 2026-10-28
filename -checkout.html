@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Complete Payment</title>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+  <h2 id="info">Loading payment details...</h2>
+  <button onclick="startPayment()" id="payBtn" style="display:none;">Pay Now</button>
+  <p id="result"></p>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const orderId = params.get("order_id");
+    const amount = params.get("amount");
+    const merchantId = params.get("merchant_id");
+    const razorpayKey = params.get("razorpay_key");
+    const userId = params.get("user_id");
+    const backendUrl = params.get("backend_url") || "http://127.0.0.1:8000";
+
+    document.getElementById("info").innerText = `Pay ₹${amount} to ${merchantId}`;
+    document.getElementById("payBtn").style.display = "inline-block";
+
+    function startPayment() {
+      const options = {
+        key: razorpayKey,
+        amount: Math.round(parseFloat(amount) * 100),
+        currency: "INR",
+        order_id: orderId,
+        handler: async function (response) {
+          const res = await fetch(
+            `${backendUrl}/verify-payment?razorpay_order_id=${response.razorpay_order_id}&razorpay_payment_id=${response.razorpay_payment_id}&razorpay_signature=${response.razorpay_signature}&user_id=${userId}&amount=${amount}&merchant_id=${merchantId}`,
+            { method: "POST" }
+          );
+          const data = await res.json();
+          if (data.status === "success") {
+            document.getElementById("result").innerText = "✅ Payment verified! ID: " + data.payment_id;
+          } else {
+            document.getElementById("result").innerText = "⚠️ Verification failed.";
+          }
+        },
+        theme: { color: "#3399cc" }
+      };
+      const rzp = new Razorpay(options);
+      rzp.open();
+    }
+  </script>
+</body>
+</html>

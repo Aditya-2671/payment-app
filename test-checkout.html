@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test Payment</title>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+</head>
+<body>
+  <h2>Pay Merchant M123 - ₹500</h2>
+  <button onclick="startPayment()">Pay Now</button>
+
+  <script>
+    async function startPayment() {
+  const payload = "M777|100.0|1791973645|d2a818bfde57fbeab792a0e7686a6d0001a67f636942aba5cbb555b32c1633b0";
+  const res = await fetch(`http://127.0.0.1:8000/create-payment?payload=${encodeURIComponent(payload)}&user_id=1`);
+  const data = await res.json();
+
+  if (data.status === "flagged") {
+    alert("⚠️ " + data.message + "\nReasons: " + data.reasons.join(", "));
+    return;
+  }
+
+  const options = {
+    key: data.razorpay_key,
+    amount: data.amount * 100,
+    currency: "INR",
+    order_id: data.order_id,
+    handler: async function (response) {
+      const verifyRes = await fetch(
+        `http://127.0.0.1:8000/verify-payment?razorpay_order_id=${response.razorpay_order_id}&razorpay_payment_id=${response.razorpay_payment_id}&razorpay_signature=${response.razorpay_signature}&user_id=${data.user_id}&amount=${data.amount}&merchant_id=${data.merchant_id}`,
+        { method: "POST" }
+      );
+      const verifyData = await verifyRes.json();
+
+      if (verifyData.status === "success") {
+        alert("✅ Payment verified and successful! ID: " + verifyData.payment_id);
+      } else {
+        alert("⚠️ Payment could NOT be verified — possible fraud.");
+      }
+    },
+    theme: { color: "#3399cc" }
+  };
+
+  const rzp = new Razorpay(options);
+  rzp.open();
+}
+  </script>
+</body>
+</html>
